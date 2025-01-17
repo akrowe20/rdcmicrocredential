@@ -1,0 +1,151 @@
+---
+title: "Rowe_BootcampProject"
+format: html
+editor: visual
+---
+
+## Project purpose
+
+The purpose of this study is to explore global primate densities in association with climate variables and primate traits. To meet this goal, we will be using an updated TetraDensity dataset with just the density values for primates extracted, located in the Data folder.
+
+The first step to complete these analyses is to prepare the datasets, which I will do for my microcredential project.
+
+## MERGING DENSITY AND TRAIT DATA
+
+We first want a dataset that that has all of the primate density values and information about traits for each primate
+
+To do this, we have 2 datasets that already match via a column called sp_id. The datasets are called TRAITS_Primates.csv and Primate_density.csv.
+
+The trait data is from COMBINE dataset: a coalesced mammal database of intrinsic and extrinsic traits: <https://doi.org/10.1002/ecy.3344>
+
+```{r}
+##### MERGING THE PRIMATE DENSITY AND TRAIT DATASET
+
+#First read in both the density and trait data
+density = read.csv("Data/Primate_density.csv")
+traits = read.csv("Data/TRAITS_Primates.csv")
+
+#Next I will merge the two datasets using the sp_id column
+
+density_traits = merge(x = density, y = traits, by = "sp_id")
+
+head(density_traits)
+
+# Save the merged dataset as a CSV file in the Output folder
+write.csv(density_traits, "Output/Density_Traits_Merged.csv", row.names = FALSE)
+
+# Confirmation message
+cat("Merged dataset has been saved as 'Output/Density_Traits_Merged.csv'")
+```
+
+## CREATING A CLIMATE DATASET
+
+Next, we want a dataset that includes global bioclimatic variables associated with geographic coordinates. To do this, I must extract data from.Geo Tiff files. To do this, I downloaded 19 bioclimatic .tif files from <https://chelsa-climate.org/downloads/>. This site includes technical specifications about the .tif files including descriptions of all of the variables.
+
+You can add options to executable code like this
+
+```{r}
+
+#### EXTRACTING BIOCLIMATIC VARIABLES FROM .TIF FILES
+
+# Load required libraries
+library(terra)      # For raster data manipulation
+library(tidyverse)  # For data wrangling
+
+# Set the directory containing the .tif files
+tif_directory <- "/Users/amandakrowe/Dropbox/CU Postdoc/Resources, Workshops, Tutorials/Data Foundations Camp/FinalProject/GitHub/rdcmicrocredential/Data"
+
+# List only the specific files named bio_01.tif through bio_19.tif
+tif_files <- list.files(tif_directory, pattern = "^bio_\\d{2}\\.tif$", full.names = TRUE)
+
+# Print the files to verify the correct ones are loaded
+print(tif_files)
+
+# Initialize an empty list to store raster data
+raster_list <- list()
+
+# Load each .tif file and store in the raster list
+for (file in tif_files) {
+  raster <- rast(file)  # Load the raster file
+  raster_list[[basename(file)]] <- raster  # Use file name as the key
+}
+
+# Merge all rasters into a single SpatRaster object
+merged_raster <- rast(tif_files)
+
+# Extract data as a data frame
+# Includes coordinates (x, y) and cell values for each raster
+raster_data <- as.data.frame(merged_raster, xy = TRUE, na.rm = TRUE)
+
+# Rename the columns to match the file names without ".tif"
+names(raster_data)[3:ncol(raster_data)] <- gsub("\\.tif$", "", basename(tif_files))
+
+# Save the extracted data to a CSV file
+output_file <- "/Users/amandakrowe/Dropbox/CU Postdoc/Resources, Workshops, Tutorials/Data Foundations Camp/FinalProject/GitHub/rdcmicrocredential/Output/climate_data_extracted.csv"
+write.csv(raster_data, file = output_file, row.names = FALSE)
+
+#Print the first few rows of the data
+head(raster_data)
+
+####INCLUDE CODE TO INCORPORATE LONG NAMES INTO DATASET
+
+# Load required libraries
+library(terra)      # For raster data manipulation
+library(tidyverse)  # For data wrangling
+
+# Set the directory containing the .tif files
+tif_directory <- "/Users/amandakrowe/Dropbox/CU Postdoc/Resources, Workshops, Tutorials/Data Foundations Camp/FinalProject/GitHub/rdcmicrocredential/Data"
+
+# List only the specific files named bio_01.tif through bio_19.tif
+tif_files <- list.files(tif_directory, pattern = "^bio_\\d{2}\\.tif$", full.names = TRUE)
+
+# Print the files to verify the correct ones are loaded
+print(tif_files)
+
+# Load all .tif files into a SpatRaster object
+merged_raster <- rast(tif_files)
+
+# Extract data as a data frame, including coordinates
+raster_data <- as.data.frame(merged_raster, xy = TRUE, na.rm = TRUE)
+
+# Define long names for the variables
+long_names <- c(
+  "mean annual air temperature",
+  "mean diurnal air temperature",
+  "isothermality",
+  "temperature seasonality",
+  "mean daily maximum air temperature of the warmest month",
+  "mean daily minimum air temperature of the coldest month",
+  "annual range of air temperature",
+  "mean daily mean air temperatures of the wettest quarter",
+  "mean daily mean air temperatures of the driest quarter",
+  "mean daily mean air temperatures of the warmest quarter",
+  "mean daily mean air temperatures of the coldest quarter",
+  "annual precipitation amount",
+  "precipitation amount of the wettest month",
+  "precipitation amount of the driest month",
+  "precipitation seasonality",
+  "mean monthly precipitation amount of the wettest quarter",
+  "mean monthly precipitation amount of the driest quarter",
+  "mean monthly precipitation amount of the warmest quarter",
+  "mean monthly precipitation amount of the coldest quarter"
+)
+
+# Create new column names: "long name (short name)"
+short_names <- gsub("\\.tif$", "", basename(tif_files))
+new_col_names <- paste0(long_names, " (", short_names, ")")
+
+# Rename the raster data columns
+names(raster_data)[3:ncol(raster_data)] <- new_col_names
+
+# Save the final data to a CSV file
+output_file <- "/Users/amandakrowe/Dropbox/CU Postdoc/Resources, Workshops, Tutorials/Data Foundations Camp/FinalProject/GitHub/rdcmicrocredential/Output/climate_data_with_long_names.csv"
+write.csv(raster_data, file = output_file, row.names = FALSE)
+
+# Print the first few rows of the data to verify
+head(raster_data)
+```
+
+With these code, I now have a dataset of global climatic variables, and a dataset of merged primate density and trait data that I can use in the next steps of the analyses.
+
+I tried to perform a script where I used data from Google Earth Engine (<https://developers.google.com/earth-engine/datasets/catalog/ESA_GLOBCOVER_L4_200901_200912_V2_3?hl=en>) to extract percentage of each type of land cover per a rescaled scale. However, I could not successfully export the .tif files from the source. The files would extract, but did not contain any data. I will have to keep trying as we would also like to include land cover in the analyses.
